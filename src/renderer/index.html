@@ -15,10 +15,16 @@
         <span class="watch-state"><i id="state-dot"></i><span id="state-label">Paused</span></span>
       </div>
       <div class="hang-group" aria-label="Spider-Man hanging from a web">
-        <span class="web-line" aria-hidden="true"></span>
-        <button id="avatar-button" class="avatar-button" title="Use the tray menu to move; use the chat shortcut" aria-label="Spider-Man avatar">
-          <img src="./assets/spider-man-cutout.png" alt="Spider-Man hanging upside down" />
-        </button>
+        <svg class="web-line" viewBox="0 0 12 44" aria-hidden="true">
+          <path class="web-strand-shadow" d="M6 0V41" />
+          <path class="web-strand" d="M6 0V41" />
+          <circle class="web-knot" cx="6" cy="41" r="1.8" />
+        </svg>
+        <div class="swing-avatar">
+          <button id="avatar-button" class="avatar-button" title="Use the tray menu to move; use the chat shortcut" aria-label="Spider-Man avatar">
+            <img src="./assets/spider-man-cutout.png" alt="Spider-Man hanging upside down" />
+          </button>
+        </div>
       </div>
       <button id="tip-bubble" class="thought-cloud hidden" type="button" aria-live="polite" aria-label="Spider-Man has a suggestion. Open chat for the full reply.">
         <svg class="thought-cloud-shape" viewBox="0 0 340 220" preserveAspectRatio="none" aria-hidden="true">

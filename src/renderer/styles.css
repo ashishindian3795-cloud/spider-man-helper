@@ -111,8 +111,6 @@ select {
   right: 6px;
   width: 154px;
   height: 300px;
-  transform-origin: 50% 0;
-  animation: hanging-sway 4.2s ease-in-out infinite;
   cursor: grab;
   touch-action: none;
   -webkit-app-region: no-drag;
@@ -120,22 +118,53 @@ select {
 .hang-group.is-dragging,
 .hang-group.is-dragging .avatar-button { cursor: grabbing; }
 .hang-group.is-move-armed .avatar-button img { filter: drop-shadow(0 0 8px rgba(255, 190, 40, .8)) drop-shadow(0 5px 5px rgba(20, 30, 50, .16)); }
+.hang-group.is-dragging .swing-avatar { animation-play-state: paused; }
 
 .web-line {
   position: absolute;
   top: 0;
   left: 50%;
-  width: 16px;
-  height: 37px;
+  width: 12px;
+  height: 43px;
   transform: translateX(-50%);
   pointer-events: none;
-  background: linear-gradient(90deg, transparent 0 7px, rgba(50, 55, 63, .55) 7px 8px, rgba(255, 255, 255, .82) 8px 9px, transparent 9px);
-  filter: drop-shadow(0 1px 1px #0003);
+  overflow: visible;
+  filter: drop-shadow(0 1px 1px #0005);
+}
+
+.web-strand-shadow {
+  fill: none;
+  stroke: rgba(28, 34, 43, .62);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.web-strand {
+  fill: none;
+  stroke: rgba(255, 255, 255, .94);
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.web-knot {
+  fill: #fff;
+  stroke: rgba(28, 34, 43, .72);
+  stroke-width: 1;
+}
+
+.swing-avatar {
+  position: absolute;
+  top: 41px;
+  left: 0;
+  width: 100%;
+  height: 260px;
+  transform-origin: 50% 0;
+  animation: hanging-sway 4.2s ease-in-out infinite;
 }
 
 .avatar-button {
   position: absolute;
-  top: 32px;
+  top: 0;
   left: 50%;
   display: block;
   width: 150px;
@@ -479,7 +508,7 @@ select:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hang-group,
+  .swing-avatar,
   .thought-cloud {
     animation: none !important;
     transition: none !important;
