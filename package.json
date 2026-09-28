@@ -1,6 +1,6 @@
 {
   "name": "spider-man-desktop-companion",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "A floating screen-aware Spider-Man coding companion for Windows and macOS.",
   "main": ".build/main/main.js",
