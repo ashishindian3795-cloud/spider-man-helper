@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'" />
+  <title>Spider-Man Companion</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./preview.css" />
+</head>
+<body>
+  <main id="app">
+    <section id="mascot" class="mascot" aria-label="Spider-Man desktop companion">
+      <div class="mascot-top">
+        <span class="watch-state"><i id="state-dot"></i><span id="state-label">Paused</span></span>
+      </div>
+      <div class="hang-group" aria-label="Spider-Man hanging from a web">
+        <span class="web-line" aria-hidden="true"></span>
+        <button id="avatar-button" class="avatar-button" title="Use the tray menu to move; use the chat shortcut" aria-label="Spider-Man avatar">
+          <img src="./assets/spider-man-cutout.png" alt="Spider-Man hanging upside down" />
+        </button>
+      </div>
+      <button id="tip-bubble" class="thought-cloud hidden" type="button" aria-live="polite" aria-label="Spider-Man has a suggestion. Open chat for the full reply.">
+        <svg class="thought-cloud-shape" viewBox="0 0 340 220" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M63 190C36 190 20 176 20 155C4 141 8 116 27 103C16 82 29 58 53 53C56 29 82 17 103 34C117 11 148 10 166 32C183 9 215 13 230 37C250 19 281 26 286 53C311 48 329 69 315 94C334 110 328 138 306 148C311 173 291 191 265 191C241 208 212 205 192 190C171 208 141 207 121 190C101 205 77 204 63 190Z" fill="#fffdf9" stroke="#20232a" stroke-width="3.5" stroke-linejoin="round" />
+          <circle cx="315" cy="196" r="10" fill="#fffdf9" stroke="#41444b" stroke-width="3" />
+          <circle cx="334" cy="213" r="6" fill="#fffdf9" stroke="#41444b" stroke-width="3" />
+        </svg>
+        <span id="thought-text" class="thought-text"></span>
+        <span class="thought-hint">Use your chat shortcut to open the full reply</span>
+      </button>
+    </section>
+
+    <section id="chat-panel" class="panel chat-panel hidden" aria-label="Chat with Spider-Man">
+      <header class="panel-header"><div><strong>Friendly neighborhood helper</strong><small id="panel-status">Ready when you are.</small></div><button id="chat-settings" class="icon-button" title="Settings" aria-label="Open settings">⚙</button><button id="close-chat" class="icon-button" aria-label="Close chat">×</button></header>
+      <div class="quick-actions" aria-label="Spider-Man quick actions">
+        <button id="watch-toggle" class="quick-action watch-action" type="button" aria-pressed="false">Start watching</button>
+        <button id="ask-now" class="quick-action ask-action" type="button">Ask Spider-Man</button>
+        <button id="move-toggle" class="quick-action ask-action" type="button" aria-pressed="false">Move Spider-Man</button>
+      </div>
+      <div id="messages" class="messages"><div class="message assistant">Hey! I can take a look at your screen and help out. 🕷️</div></div>
+      <form id="chat-form" class="chat-form"><textarea id="question" rows="2" placeholder="Ask about what's on your screen…" maxlength="2000"></textarea><button id="send-button" class="primary-button" type="submit">Send</button></form>
+      <div class="privacy-note">While watching, screen snapshots go to your selected AI service at the chosen interval. Ask Spider-Man to explain an error or its suggested fix.</div>
+    </section>
+
+    <section id="settings-panel" class="panel settings-panel hidden" aria-label="Settings">
+      <header class="panel-header"><div><strong>Companion settings</strong><small>Screen and AI setup</small></div><button id="close-settings" class="icon-button" aria-label="Close settings">×</button></header>
+      <form id="settings-form" class="settings-form">
+        <label>AI connection<select id="provider"><option value="xkiro">xKiro unified API</option><option value="custom">Custom OpenAI-compatible API</option></select></label>
+        <label id="endpoint-wrap" class="hidden">API base URL<input id="endpoint" type="url" placeholder="https://api.example.com/v1" /></label>
+        <label>Vision model<input id="model" type="text" placeholder="qwen/qwen3-coder-plus:free" autocomplete="off" /></label>
+        <label>API key<input id="api-key" type="password" placeholder="Paste your API key" autocomplete="new-password" /></label>
+        <small id="key-status" class="field-hint">Your key is encrypted using the operating system's secure storage.</small>
+        <small id="connection-summary" class="field-hint"></small>
+        <label>Display<select id="display"></select></label>
+        <label>Snapshot interval<select id="interval"><option value="5">5 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">60 seconds</option></select></label>
+        <label class="check-row"><input id="proactive" type="checkbox" checked /> Spot coding errors and suggest fixes while I work</label>
+        <label class="check-row"><input id="launch-at-login" type="checkbox" checked /> Launch Spider-Man when I sign in</label>
+        <small id="launch-status" class="field-hint" role="status"></small>
+        <label>Chat shortcut<input id="shortcut" type="text" placeholder="CommandOrControl+Shift+Space" /></label>
+        <div class="settings-actions"><button id="permission-button" class="text-button" type="button">Screen permission help</button><button class="primary-button" type="submit">Save settings</button></div>
+      </form>
+      <div id="settings-message" class="settings-message" role="status"></div>
+    </section>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+  </main>
+  <script src="./preview-bridge.js"></script>
+  <script src="./renderer.js"></script>
+</body>
+</html>

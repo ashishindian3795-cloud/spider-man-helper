@@ -1,0 +1,48 @@
+{
+  "name": "spider-man-desktop-companion",
+  "version": "0.2.2",
+  "private": true,
+  "description": "A floating screen-aware Spider-Man coding companion for Windows and macOS.",
+  "main": ".build/main/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
+    "start": "npm run build && electron .",
+    "package": "npm run build && electron-builder",
+    "package:win": "npm run build && electron-builder --win nsis zip --x64",
+    "package:mac": "npm run build && electron-builder --mac dmg zip"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "electron": "^43.7.5",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.8.3"
+  },
+  "build": {
+    "appId": "com.spiderman.companion",
+    "productName": "Spider-Man Companion",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      ".build/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "zip", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dmg", "zip"]
+    }
+  }
+}
