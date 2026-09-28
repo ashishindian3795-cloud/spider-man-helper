@@ -1,5 +1,5 @@
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray, systemPreferences } from 'electron';
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -26,6 +26,8 @@ let lastTipText = '';
 let snapshotInFlight = false;
 let snapshotTimer: NodeJS.Timeout | undefined;
 let settingsPath = '';
+let overlayPositionPath = '';
+let savedOverlayPosition: { x: number; y: number } | undefined;
 let credentialPath = '';
 let overlayMode: 'compact' | 'chat' | 'settings' | 'thought' = 'compact';
 let moveMode = false;
@@ -120,7 +122,10 @@ function setMoveMode(enabled: boolean) {
   moveModeTimer = undefined;
   moveMode = enabled;
   if (enabled) {
-    moveModeTimer = setTimeout(() => setMoveMode(false), 15_000);
+    moveModeTimer = setTimeout(() => {
+      saveOverlayPosition();
+      setMoveMode(false);
+    }, 15_000);
     if (!overlay.isVisible()) overlay.show();
   }
   updateMouseInputMode();
@@ -140,16 +145,44 @@ function toggleOverlayVisibility() {
 
 function positionOverlay(width: number, height: number) {
   if (!overlay) return;
-  const display = screen.getPrimaryDisplay();
+  const initialPosition = savedOverlayPosition;
+  const display = initialPosition
+    ? screen.getDisplayMatching({ x: initialPosition.x, y: initialPosition.y, width, height })
+    : screen.getPrimaryDisplay();
   const { x, y, width: workWidth, height: workHeight } = display.workArea;
   const safeWidth = Math.min(width, Math.max(1, workWidth - 16));
   const safeHeight = Math.min(height, Math.max(1, workHeight - 24));
+  const maxX = x + workWidth - safeWidth;
+  const maxY = y + workHeight - safeHeight;
   overlay.setBounds({
-    x: x + workWidth - safeWidth - 12,
-    y: y + Math.min(48, Math.max(0, workHeight - safeHeight)),
+    x: initialPosition ? Math.min(maxX, Math.max(x, initialPosition.x)) : maxX - 12,
+    y: initialPosition ? Math.min(maxY, Math.max(y, initialPosition.y)) : y + Math.min(48, Math.max(0, workHeight - safeHeight)),
     width: safeWidth,
     height: safeHeight
   });
+}
+
+async function loadOverlayPosition() {
+  try {
+    const saved = JSON.parse(await readFile(overlayPositionPath, 'utf8')) as { x?: unknown; y?: unknown };
+    if (typeof saved.x === 'number' && Number.isFinite(saved.x) && Math.abs(saved.x) <= 1_000_000
+      && typeof saved.y === 'number' && Number.isFinite(saved.y) && Math.abs(saved.y) <= 1_000_000) {
+      savedOverlayPosition = { x: Math.round(saved.x), y: Math.round(saved.y) };
+    }
+  } catch {
+    savedOverlayPosition = undefined;
+  }
+}
+
+function saveOverlayPosition() {
+  if (!overlay || overlay.isDestroyed() || !overlayPositionPath) return;
+  const { x, y } = overlay.getBounds();
+  savedOverlayPosition = { x, y };
+  try {
+    writeFileSync(overlayPositionPath, JSON.stringify(savedOverlayPosition), 'utf8');
+  } catch (error) {
+    console.warn('Could not save Spider-Man’s position:', error);
+  }
 }
 
 function resizeOverlay(width: number, height: number) {
@@ -509,8 +542,9 @@ function registerIpc() {
     moveOverlayBy(dx, dy);
   });
   ipcMain.on('overlay:move-finished', (event) => {
-    if (event.sender !== overlay?.webContents || !moveMode) return;
-    setMoveMode(false);
+    if (event.sender !== overlay?.webContents) return;
+    if (moveMode) setMoveMode(false);
+    saveOverlayPosition();
   });
   ipcMain.on('app:quit', () => app.quit());
 }
@@ -519,8 +553,10 @@ app.whenReady().then(async () => {
   const userData = app.getPath('userData');
   await mkdir(userData, { recursive: true });
   settingsPath = path.join(userData, 'settings.json');
+  overlayPositionPath = path.join(userData, 'overlay-position.json');
   credentialPath = path.join(userData, 'api-key.enc');
   await loadSettings();
+  await loadOverlayPosition();
   createOverlay();
   registerIpc();
   const shortcutRegistered = registerShortcut(settings.shortcut);
@@ -540,4 +576,3 @@ app.on('will-quit', () => {
   if (moveModeTimer) clearTimeout(moveModeTimer);
 });
 app.on('window-all-closed', () => undefined);
-
