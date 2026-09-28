@@ -107,6 +107,7 @@ select {
 .panel-header .icon-button:hover { background: #e1e5ee; }
 
 .hang-group {
+  --web-anchor-x: 42.5%;
   position: absolute;
   top: 0;
   right: 6px;
@@ -124,7 +125,7 @@ select {
 .web-line {
   position: absolute;
   top: 0;
-  left: 50%;
+  left: var(--web-anchor-x);
   width: 154px;
   height: calc(var(--web-inset) + 43px);
   transform: translateX(-50%);
@@ -181,7 +182,7 @@ select {
   left: 0;
   width: 100%;
   height: 260px;
-  transform-origin: 50% 0;
+  transform-origin: var(--web-anchor-x) 0;
   animation: hanging-sway 4.2s ease-in-out infinite;
 }
 
