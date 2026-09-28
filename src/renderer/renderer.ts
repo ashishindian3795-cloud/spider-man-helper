@@ -16,6 +16,14 @@ type CompanionStatus = {
 };
 type DisplayOption = { id: string; label: string; width: number; height: number; primary: boolean };
 
+const configuredWebInset = new URL(window.location.href).searchParams.get('webInset');
+if (configuredWebInset !== null) {
+  const webInset = Number(configuredWebInset);
+  if (Number.isFinite(webInset) && webInset >= 0 && webInset <= 160) {
+    document.documentElement.style.setProperty('--web-inset', `${webInset}px`);
+  }
+}
+
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const chatPanel = $('chat-panel');
 const settingsPanel = $('settings-panel');
@@ -344,4 +352,3 @@ function showThought(text: string) {
 }
 
 $('tip-bubble').addEventListener('click', openChat);
-

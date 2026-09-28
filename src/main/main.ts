@@ -28,6 +28,8 @@ let snapshotTimer: NodeJS.Timeout | undefined;
 let settingsPath = '';
 let overlayPositionPath = '';
 let savedOverlayPosition: { x: number; y: number } | undefined;
+let overlayWebInset = 48;
+let overlayPositionNeedsMigration = false;
 let credentialPath = '';
 let overlayMode: 'compact' | 'chat' | 'settings' | 'thought' = 'compact';
 let moveMode = false;
@@ -154,9 +156,12 @@ function positionOverlay(width: number, height: number) {
   const safeHeight = Math.min(height, Math.max(1, workHeight - 24));
   const maxX = x + workWidth - safeWidth;
   const maxY = y + workHeight - safeHeight;
+  if (!initialPosition) {
+    overlayWebInset = Math.max(0, y + Math.min(48, Math.max(0, workHeight - safeHeight)) - display.bounds.y);
+  }
   overlay.setBounds({
     x: initialPosition ? Math.min(maxX, Math.max(x, initialPosition.x)) : maxX - 12,
-    y: initialPosition ? Math.min(maxY, Math.max(y, initialPosition.y)) : y + Math.min(48, Math.max(0, workHeight - safeHeight)),
+    y: initialPosition ? Math.min(maxY, Math.max(display.bounds.y, initialPosition.y)) : display.bounds.y,
     width: safeWidth,
     height: safeHeight
   });
@@ -164,10 +169,21 @@ function positionOverlay(width: number, height: number) {
 
 async function loadOverlayPosition() {
   try {
-    const saved = JSON.parse(await readFile(overlayPositionPath, 'utf8')) as { x?: unknown; y?: unknown };
+    const saved = JSON.parse(await readFile(overlayPositionPath, 'utf8')) as { version?: unknown; x?: unknown; y?: unknown; webInset?: unknown };
     if (typeof saved.x === 'number' && Number.isFinite(saved.x) && Math.abs(saved.x) <= 1_000_000
       && typeof saved.y === 'number' && Number.isFinite(saved.y) && Math.abs(saved.y) <= 1_000_000) {
-      savedOverlayPosition = { x: Math.round(saved.x), y: Math.round(saved.y) };
+      const x = Math.round(saved.x);
+      const y = Math.round(saved.y);
+      if (saved.version === 2 && typeof saved.webInset === 'number' && Number.isFinite(saved.webInset)) {
+        savedOverlayPosition = { x, y };
+        overlayWebInset = Math.min(160, Math.max(0, Math.round(saved.webInset)));
+      } else {
+        const display = screen.getDisplayMatching({ x, y, width: 220, height: 390 });
+        const oldTopInset = Math.max(0, display.workArea.y + Math.min(48, Math.max(0, display.workArea.height - 390)) - display.bounds.y);
+        overlayWebInset = Math.min(oldTopInset, Math.max(0, y - display.bounds.y));
+        savedOverlayPosition = { x, y: y - overlayWebInset };
+        overlayPositionNeedsMigration = true;
+      }
     }
   } catch {
     savedOverlayPosition = undefined;
@@ -179,7 +195,8 @@ function saveOverlayPosition() {
   const { x, y } = overlay.getBounds();
   savedOverlayPosition = { x, y };
   try {
-    writeFileSync(overlayPositionPath, JSON.stringify(savedOverlayPosition), 'utf8');
+    writeFileSync(overlayPositionPath, JSON.stringify({ version: 2, x, y, webInset: overlayWebInset }), 'utf8');
+    overlayPositionNeedsMigration = false;
   } catch (error) {
     console.warn('Could not save Spider-Man’s position:', error);
   }
@@ -188,14 +205,15 @@ function saveOverlayPosition() {
 function resizeOverlay(width: number, height: number) {
   if (!overlay) return;
   const bounds = overlay.getBounds();
-  const area = screen.getDisplayMatching(bounds).workArea;
+  const display = screen.getDisplayMatching(bounds);
+  const area = display.workArea;
   const safeWidth = Math.min(width, Math.max(1, area.width));
   const safeHeight = Math.min(height, Math.max(1, area.height));
   const maxX = area.x + area.width - safeWidth;
   const maxY = area.y + area.height - safeHeight;
   const right = bounds.x + bounds.width;
   const x = Math.min(maxX, Math.max(area.x, right - safeWidth));
-  const y = Math.min(maxY, Math.max(area.y, bounds.y));
+  const y = Math.min(maxY, Math.max(display.bounds.y, bounds.y));
   overlay.setBounds({ x, y, width: safeWidth, height: safeHeight });
 }
 
@@ -203,12 +221,13 @@ function moveOverlayBy(dx: number, dy: number) {
   if (!overlay || !Number.isFinite(dx) || !Number.isFinite(dy) || Math.abs(dx) > 10_000 || Math.abs(dy) > 10_000) return;
   const bounds = overlay.getBounds();
   const nextBounds = { ...bounds, x: bounds.x + Math.round(dx), y: bounds.y + Math.round(dy) };
-  const area = screen.getDisplayMatching(nextBounds).workArea;
+  const display = screen.getDisplayMatching(nextBounds);
+  const area = display.workArea;
   const maxX = Math.max(area.x, area.x + area.width - bounds.width);
   const maxY = Math.max(area.y, area.y + area.height - bounds.height);
   overlay.setPosition(
     Math.min(maxX, Math.max(area.x, nextBounds.x)),
-    Math.min(maxY, Math.max(area.y, nextBounds.y))
+    Math.min(maxY, Math.max(display.bounds.y, nextBounds.y))
   );
 }
 
@@ -239,7 +258,9 @@ function createOverlay() {
     if (!target.isDestroyed()) target.webContents.send('overlay:move-mode', moveMode);
   });
   const rendererPath = path.resolve(__dirname, '../renderer/index.html');
-  void target.loadURL(pathToFileURL(rendererPath).href).then(() => {
+  const rendererUrl = pathToFileURL(rendererPath);
+  rendererUrl.searchParams.set('webInset', String(overlayWebInset));
+  void target.loadURL(rendererUrl.href).then(() => {
     if (!target.isDestroyed()) target.show();
   }).catch((error: unknown) => {
     console.error('Could not load the Spider-Man companion window:', error);
@@ -558,6 +579,7 @@ app.whenReady().then(async () => {
   await loadSettings();
   await loadOverlayPosition();
   createOverlay();
+  if (overlayPositionNeedsMigration) saveOverlayPosition();
   registerIpc();
   const shortcutRegistered = registerShortcut(settings.shortcut);
   const launchMessage = configureLoginItem();
