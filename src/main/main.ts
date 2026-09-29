@@ -1,5 +1,5 @@
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray, systemPreferences } from 'electron';
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -30,6 +30,7 @@ let overlayPositionPath = '';
 let savedOverlayPosition: { x: number; y: number } | undefined;
 let overlayWebInset = 48;
 let overlayPositionNeedsMigration = false;
+let overlayPositionSaveTimer: NodeJS.Timeout | undefined;
 let credentialPath = '';
 let overlayMode: 'compact' | 'chat' | 'settings' | 'thought' = 'compact';
 let moveMode = false;
@@ -191,15 +192,32 @@ async function loadOverlayPosition() {
 }
 
 function saveOverlayPosition() {
+  if (overlayPositionSaveTimer) clearTimeout(overlayPositionSaveTimer);
+  overlayPositionSaveTimer = undefined;
   if (!overlay || overlay.isDestroyed() || !overlayPositionPath) return;
   const { x, y } = overlay.getBounds();
   savedOverlayPosition = { x, y };
+  const temporaryPath = `${overlayPositionPath}.tmp`;
   try {
-    writeFileSync(overlayPositionPath, JSON.stringify({ version: 2, x, y, webInset: overlayWebInset }), 'utf8');
+    writeFileSync(temporaryPath, JSON.stringify({ version: 2, x, y, webInset: overlayWebInset }), 'utf8');
+    renameSync(temporaryPath, overlayPositionPath);
     overlayPositionNeedsMigration = false;
   } catch (error) {
     console.warn('Could not save Spider-Man’s position:', error);
+    try {
+      if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+    } catch (cleanupError) {
+      console.warn('Could not clean up Spider-Man’s temporary position file:', cleanupError);
+    }
   }
+}
+
+function scheduleOverlayPositionSave() {
+  if (overlayPositionSaveTimer) clearTimeout(overlayPositionSaveTimer);
+  overlayPositionSaveTimer = setTimeout(() => {
+    overlayPositionSaveTimer = undefined;
+    saveOverlayPosition();
+  }, 250);
 }
 
 function resizeOverlay(width: number, height: number) {
@@ -254,6 +272,9 @@ function createOverlay() {
   overlay.setIgnoreMouseEvents(true);
   positionOverlay(220, 390);
   const target = overlay;
+  target.on('move', scheduleOverlayPositionSave);
+  target.on('query-session-end', saveOverlayPosition);
+  target.on('session-end', saveOverlayPosition);
   target.webContents.on('did-finish-load', () => {
     if (!target.isDestroyed()) target.webContents.send('overlay:move-mode', moveMode);
   });
@@ -592,7 +613,9 @@ app.whenReady().then(async () => {
 });
 
 app.on('activate', () => overlay?.show());
+app.on('before-quit', saveOverlayPosition);
 app.on('will-quit', () => {
+  saveOverlayPosition();
   globalShortcut.unregisterAll();
   if (snapshotTimer) clearTimeout(snapshotTimer);
   if (moveModeTimer) clearTimeout(moveModeTimer);
